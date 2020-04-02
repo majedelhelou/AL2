@@ -1,20 +1,20 @@
 from __future__ import print_function
-from PIL import Image
+
 import os
 import os.path
-import numpy as np
 import sys
 if sys.version_info[0] == 2:
     import cPickle as pickle
 else:
     import pickle
 
-import torch.utils.data as data
-from utils import download_url, check_integrity
-
+import numpy as np
+from PIL import Image
 import torch
+import torch.utils.data as data
 
 from MNIST_utils import get_wrong_targets
+from utils import download_url, check_integrity
 
 
 def shrink_data(train_data, train_labels, percent_shrink_data):
@@ -29,24 +29,26 @@ def shrink_data(train_data, train_labels, percent_shrink_data):
             - train_data_shrink (shrunken training data tensor)
             - train_labels_shrink (shrunken labels tensor corresponding to the train data)
     '''
-    
-    chosen_indices = np.random.choice([1, 0], size=(len(train_labels),), p=[percent_shrink_data/100, 1-percent_shrink_data/100])
-    
+
+    chosen_indices = np.random.choice([1, 0],
+                                      size=(len(train_labels), ),
+                                      p=[percent_shrink_data / 100, 1 - percent_shrink_data / 100])
+
     # Get the shape of the final tensor:
     final_data_size = sum(chosen_indices)
-    for i in range( len(train_data.shape) ):
+    for i in range(len(train_data.shape)):
         if i == 0:
             shrink_shape_list = [final_data_size]
         else:
             shrink_shape_list.append(train_data.shape[i])
-    
+
     train_data_shrink = np.zeros(shrink_shape_list, dtype=train_data.dtype)
     train_labels_shrink = np.zeros(final_data_size, dtype=type(train_labels[0]))
-    
+
     shrunk_ID = 0
     for sample in range(len(train_labels)):
         if chosen_indices[sample] == 1:
-            train_data_shrink[shrunk_ID,] = train_data[sample]
+            train_data_shrink[shrunk_ID, ] = train_data[sample]
             train_labels_shrink[shrunk_ID] = train_labels[sample]
             shrunk_ID += 1
 
@@ -64,49 +66,48 @@ def augment_data_rot(train_data, train_labels):
             - train_data_aug (tensor containing all training samples with rotation augmentation)
             - train_labels_aug (corresponding classification labels of the augmented dataset)
     '''
-    
-    aug_factor = 2 #if !=2: adjust for loop
-    chosen_rots = np.random.choice([90, 180, 270], size=(len(train_labels),))
-    
-    for i in range( len(train_data.shape) ):
+
+    aug_factor = 2  #if !=2: adjust for loop
+    chosen_rots = np.random.choice([90, 180, 270], size=(len(train_labels), ))
+
+    for i in range(len(train_data.shape)):
         if i == 0:
-            aug_shape_list = [train_data.shape[0]*aug_factor]
+            aug_shape_list = [train_data.shape[0] * aug_factor]
         else:
             aug_shape_list.append(train_data.shape[i])
 
     train_data_aug = np.zeros(aug_shape_list, dtype=train_data.dtype)
-    train_labels_aug = np.zeros(aug_factor*len(train_labels), dtype=type(train_labels[0]))
-    
+    train_labels_aug = np.zeros(aug_factor * len(train_labels), dtype=type(train_labels[0]))
+
     # Copy original data:
-    train_data_aug[0:train_data.shape[0],] = train_data
+    train_data_aug[0:train_data.shape[0], ] = train_data
     train_labels_aug[0:len(train_labels)] = train_labels
-    
+
     # Add another copy made up of rotations:
     for sample in range(len(train_labels)):
         index_aug = train_data.shape[0] + sample
         train_labels_aug[index_aug] = train_labels[sample]
-        x = train_data[sample,]
-        
+        x = train_data[sample, ]
+
         if chosen_rots[sample] == 90:
-            train_data_aug[index_aug,] = np.rot90(x)
-            
+            train_data_aug[index_aug, ] = np.rot90(x)
+
         elif chosen_rots[sample] == 180:
-            train_data_aug[index_aug,] = np.rot90(x,2)
-            
+            train_data_aug[index_aug, ] = np.rot90(x, 2)
+
         elif chosen_rots[sample] == 270:
-            train_data_aug[index_aug,] = np.rot90(x,3)
-    
+            train_data_aug[index_aug, ] = np.rot90(x, 3)
+
     return train_data_aug, train_labels_aug.tolist()
 
 
-
 class my_CIFAR10(data.Dataset):
-    """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
+    '''`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
 
     Args:
-        * percent_randomized (float, optional): percentage of labels to be corrupted
-        * aug_data (bool, optional): If True, augments the data once with rotations
-        * percent_shrink_data (int, optional): If <100, shrinks the data to that percentage
+        percent_randomized (float, optional): percentage of labels to be corrupted
+        aug_data (bool, optional): If True, augments the data once with rotations
+        percent_shrink_data (int, optional): If <100, shrinks the data to that percentage
         
         root (string): Root directory of dataset where directory
             ``cifar-10-batches-py`` exists or will be saved to if download is set to True.
@@ -120,7 +121,7 @@ class my_CIFAR10(data.Dataset):
             puts it in root directory. If dataset is already downloaded, it is not
             downloaded again.
 
-    """
+    '''
     base_folder = 'cifar-10-batches-py'
     url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
     filename = "cifar-10-python.tar.gz"
@@ -137,7 +138,15 @@ class my_CIFAR10(data.Dataset):
         ['test_batch', '40351d587109b95175f43aff81a1287e'],
     ]
 
-    def __init__(self, root, train=True, transform=None, target_transform=None, download=False, percent_randomized=0, aug_data=False, percent_shrink_data=100):
+    def __init__(self,
+                 root,
+                 train=True,
+                 transform=None,
+                 target_transform=None,
+                 download=False,
+                 percent_randomized=0,
+                 aug_data=False,
+                 percent_shrink_data=100):
         self.root = os.path.expanduser(root)
         self.transform = transform
         self.target_transform = target_transform
@@ -147,8 +156,7 @@ class my_CIFAR10(data.Dataset):
             self.download()
 
         if not self._check_integrity():
-            raise RuntimeError('Dataset not found or corrupted.' +
-                               ' You can use download=True to download it')
+            raise RuntimeError('Dataset not found or corrupted.' + ' You can use download=True to download it')
 
         # now load the pickled numpy arrays
         if self.train:
@@ -169,34 +177,37 @@ class my_CIFAR10(data.Dataset):
                     self.train_labels += entry['fine_labels']
                 fo.close()
 
-            
             self.train_data = np.concatenate(self.train_data)
             self.train_data = self.train_data.reshape((50000, 3, 32, 32))
             self.train_data = self.train_data.transpose((0, 2, 3, 1))  # convert to HWC
-        
+
             if percent_shrink_data < 100:
-                if (not isinstance(percent_shrink_data, int)) or (percent_shrink_data>100) or (percent_shrink_data<1):
+                if (not isinstance(percent_shrink_data,
+                                   int)) or (percent_shrink_data > 100) or (percent_shrink_data < 1):
                     raise RuntimeError('Non-valid percentage for shrinking data (must be int in [1,100])')
                 else:
-                    [self.train_data, self.train_labels] = shrink_data(self.train_data, self.train_labels, percent_shrink_data)
-                    print('Shrunk data by random sampling, down to %d%%' %percent_shrink_data)
-                
+                    [self.train_data, self.train_labels] = shrink_data(self.train_data, self.train_labels,
+                                                                       percent_shrink_data)
+                    print('Shrunk data by random sampling, down to %d%%' % percent_shrink_data)
+
             if percent_randomized > 0:
                 if percent_randomized > 100:
                     raise RuntimeError('Non-valid percentage for randomizing data (must be in [0,100])')
                 else:
-                    if self.base_folder[8] == '0': #to distinguish CIFAR10 from its subclass CIFAR100
+                    if self.base_folder[8] == '0':  #to distinguish CIFAR10 from its subclass CIFAR100
                         C = 100
                     else:
                         C = 10
                     self.train_labels = get_wrong_targets(self.train_labels, percent_randomized, C)
-                    print('Randomized %d %% of training labels to wrong values' %percent_randomized)
-                
+                    print('Randomized %d %% of training labels to wrong values' % percent_randomized)
+
             if aug_data:
                 [self.train_data, self.train_labels] = augment_data_rot(self.train_data, self.train_labels)
                 print('Augmented data (double) using the extra rotations 90, 180, 270')
-            
+
             # Move to tensors
+
+
 #             self.train_data = torch.from_numpy(self.train_data)
 #             self.train_labels = torch.from_numpy(np.asarray(self.train_labels))
 
@@ -217,15 +228,14 @@ class my_CIFAR10(data.Dataset):
             self.test_data = self.test_data.reshape((10000, 3, 32, 32))
             self.test_data = self.test_data.transpose((0, 2, 3, 1))  # convert to HWC
 
-
     def __getitem__(self, index):
-        """
+        '''
         Args:
             index (int): Index
 
         Returns:
             tuple: (image, target) where target is index of the target class.
-        """
+        '''
         if self.train:
             img, target = self.train_data[index], self.train_labels[index]
         else:
@@ -242,7 +252,6 @@ class my_CIFAR10(data.Dataset):
             target = self.target_transform(target)
 
         return img, target
-
 
     def __len__(self):
         if self.train:
@@ -290,13 +299,11 @@ class my_CIFAR10(data.Dataset):
         return fmt_str
 
 
-
-
 class my_CIFAR100(my_CIFAR10):
-    """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
+    '''`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
 
     This is a subclass of the `CIFAR10` Dataset.
-    """
+    '''
     base_folder = 'cifar-100-python'
     url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
     filename = "cifar-100-python.tar.gz"

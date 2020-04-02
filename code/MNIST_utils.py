@@ -1,10 +1,11 @@
-import torch.utils.data as data
+import codecs
+import errno
 import os
-import torch
+
 import numpy as np
 from PIL import Image
-import errno
-import codecs
+import torch.utils.data as data
+import torch
 
 '''
 shrink_data
@@ -26,24 +27,26 @@ def shrink_data(train_data, train_labels, percent_shrink_data):
             - train_data_shrink (shrunken training data tensor)
             - train_labels_shrink (shrunken labels tensor corresponding to the train data)
     '''
-    
-    chosen_indices = np.random.choice([1, 0], size=(len(train_labels),), p=[percent_shrink_data/100, 1-percent_shrink_data/100])
-    
+
+    chosen_indices = np.random.choice([1, 0],
+                                      size=(len(train_labels), ),
+                                      p=[percent_shrink_data / 100, 1 - percent_shrink_data / 100])
+
     # Get the shape of the final tensor:
     final_data_size = sum(chosen_indices)
-    for i in range( len(train_data.shape) ):
+    for i in range(len(train_data.shape)):
         if i == 0:
             shrink_shape_list = [final_data_size]
         else:
             shrink_shape_list.append(train_data.shape[i])
-    
+
     train_data_shrink = torch.zeros(shrink_shape_list, dtype=train_data.dtype)
     train_labels_shrink = torch.zeros(final_data_size, dtype=train_labels.dtype)
-    
+
     shrunk_ID = 0
     for sample in range(len(train_labels)):
         if chosen_indices[sample] == 1:
-            train_data_shrink[shrunk_ID,] = train_data[sample]
+            train_data_shrink[shrunk_ID, ] = train_data[sample]
             train_labels_shrink[shrunk_ID] = train_labels[sample]
             shrunk_ID += 1
 
@@ -61,38 +64,38 @@ def augment_data_rot(train_data, train_labels):
             - train_data_aug (tensor containing all training samples with rotation augmentation)
             - train_labels_aug (corresponding classification labels of the augmented dataset)
     '''
-    
-    aug_factor = 2 #if !=2: adjust for loop
-    chosen_rots = np.random.choice([90, 180, 270], size=(len(train_labels),))
-    
-    for i in range( len(train_data.shape) ):
+
+    aug_factor = 2  #if !=2: adjust for loop
+    chosen_rots = np.random.choice([90, 180, 270], size=(len(train_labels), ))
+
+    for i in range(len(train_data.shape)):
         if i == 0:
-            aug_shape_list = [train_data.shape[0]*aug_factor]
+            aug_shape_list = [train_data.shape[0] * aug_factor]
         else:
             aug_shape_list.append(train_data.shape[i])
 
     train_data_aug = torch.zeros(aug_shape_list, dtype=train_data.dtype)
-    train_labels_aug = torch.zeros(aug_factor*len(train_labels), dtype=train_labels.dtype)
-    
+    train_labels_aug = torch.zeros(aug_factor * len(train_labels), dtype=train_labels.dtype)
+
     # Copy original data:
-    train_data_aug[0:train_data.shape[0],] = train_data
+    train_data_aug[0:train_data.shape[0], ] = train_data
     train_labels_aug[0:len(train_labels)] = train_labels
-    
+
     # Add another copy made up of rotations:
     for sample in range(len(train_labels)):
         index_aug = train_data.shape[0] + sample
         train_labels_aug[index_aug] = train_labels[sample]
-        x = train_data[sample,]
-        
+        x = train_data[sample, ]
+
         if chosen_rots[sample] == 90:
-            train_data_aug[index_aug,] = x.transpose(0,1).flip(0)
-            
+            train_data_aug[index_aug, ] = x.transpose(0, 1).flip(0)
+
         elif chosen_rots[sample] == 180:
-            train_data_aug[index_aug,] = x.flip(0,1)
-            
+            train_data_aug[index_aug, ] = x.flip(0, 1)
+
         elif chosen_rots[sample] == 270:
-            train_data_aug[index_aug,] = x.transpose(0,1).flip(1)
-    
+            train_data_aug[index_aug, ] = x.transpose(0, 1).flip(1)
+
     return train_data_aug, train_labels_aug
 
 
@@ -108,25 +111,27 @@ def get_wrong_targets(target, percent_randomized, C):
     Output:
             - modified list of class IDs
     '''
-    
-    chosen_indices = np.random.choice([1, 0], size=(len(target),), p=[percent_randomized/100, 1-percent_randomized/100])
-    
+
+    chosen_indices = np.random.choice([1, 0],
+                                      size=(len(target), ),
+                                      p=[percent_randomized / 100, 1 - percent_randomized / 100])
+
     for target_id in range(len(target)):
         if chosen_indices[target_id] == 1:
             # Choose a random target different from the correct one:
             target_rand_options = [x for x in range(0, C) if x != target[target_id]]
             target[target_id] = int(np.random.choice(target_rand_options))
-    
+
     return target
 
 
 class my_MNIST(data.Dataset):
-    """`MNIST <http://yann.lecun.com/exdb/mnist/>`_ Dataset.
+    '''`MNIST <http://yann.lecun.com/exdb/mnist/>`_ Dataset.
 
     Args:
-        * percent_randomized (float, optional): percentage of labels to be corrupted
-        * aug_data (bool, optional): If True, augments the data once with rotations
-        * percent_shrink_data (int, optional): If <100, shrinks the data to that percentage
+        percent_randomized (float, optional): percentage of labels to be corrupted
+        aug_data (bool, optional): If True, augments the data once with rotations
+        percent_shrink_data (int, optional): If <100, shrinks the data to that percentage
         
         root (string): Root directory of dataset where ``processed/training.pt``
             and  ``processed/test.pt`` exist.
@@ -139,8 +144,8 @@ class my_MNIST(data.Dataset):
             and returns a transformed version. E.g, ``transforms.RandomCrop``
         target_transform (callable, optional): A function/transform that takes in the
             target and transforms it.
-    """
-    
+    '''
+
     urls = [
         'http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz',
         'http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz',
@@ -151,55 +156,64 @@ class my_MNIST(data.Dataset):
     processed_folder = 'processed'
     training_file = 'training.pt'
     test_file = 'test.pt'
-    
-    def __init__(self, root, train=True, transform=None, target_transform=None, download=False, percent_randomized=0, aug_data=False, percent_shrink_data=100):
-        
+
+    def __init__(self,
+                 root,
+                 train=True,
+                 transform=None,
+                 target_transform=None,
+                 download=False,
+                 percent_randomized=0,
+                 aug_data=False,
+                 percent_shrink_data=100):
+
         self.root = os.path.expanduser(root)
         self.transform = transform
         self.target_transform = target_transform
         self.train = train  # training set or test set
-        
+
         if download:
             self.download()
 
         if not self._check_exists():
-            raise RuntimeError('Dataset not found.' +
-                               ' You can use download=True to download it')
+            raise RuntimeError('Dataset not found.' + ' You can use download=True to download it')
 
         if self.train:
             self.train_data, self.train_labels = torch.load(
                 os.path.join(self.root, self.processed_folder, self.training_file))
-            
+
             if percent_shrink_data < 100:
-                if (not isinstance(percent_shrink_data, int)) or (percent_shrink_data>100) or (percent_shrink_data<1):
+                if (not isinstance(percent_shrink_data,
+                                   int)) or (percent_shrink_data > 100) or (percent_shrink_data < 1):
                     raise RuntimeError('Non-valid percentage for shrinking data (must be int in [1,100])')
                 else:
-                    [self.train_data, self.train_labels] = shrink_data(self.train_data, self.train_labels, percent_shrink_data)
-                    print('Shrunk data by random sampling, down to %d%%' %percent_shrink_data)
-                
+                    [self.train_data, self.train_labels] = shrink_data(self.train_data, self.train_labels,
+                                                                       percent_shrink_data)
+                    print('Shrunk data by random sampling, down to %d%%' % percent_shrink_data)
+
             if percent_randomized > 0:
                 if percent_randomized > 100:
                     raise RuntimeError('Non-valid percentage for randomizing data (must be in [0,100])')
                 else:
                     self.train_labels = get_wrong_targets(self.train_labels, percent_randomized, 10)
-                    print('Randomized %d %% of training labels to wrong values' %percent_randomized)
-                
+                    print('Randomized %d %% of training labels to wrong values' % percent_randomized)
+
             if aug_data:
                 [self.train_data, self.train_labels] = augment_data_rot(self.train_data, self.train_labels)
                 print('Augmented data (double) using the extra rotations 90, 180, 270')
-            
+
         else:
-            self.test_data, self.test_labels = torch.load(
-                os.path.join(self.root, self.processed_folder, self.test_file))
+            self.test_data, self.test_labels = torch.load(os.path.join(self.root, self.processed_folder,
+                                                                       self.test_file))
 
     def __getitem__(self, index):
-        """
+        '''
         Args:
             index (int): Index
 
         Returns:
             tuple: (image, target) where target is index of the target class.
-        """
+        '''
         if self.train:
             img, target = self.train_data[index], self.train_labels[index]
         else:
@@ -228,7 +242,7 @@ class my_MNIST(data.Dataset):
             os.path.exists(os.path.join(self.root, self.processed_folder, self.test_file))
 
     def download(self):
-        """Download the MNIST data if it doesn't exist in processed_folder already."""
+        '''Download the MNIST data if it doesn't exist in processed_folder already.'''
         from six.moves import urllib
         import gzip
 
@@ -260,14 +274,10 @@ class my_MNIST(data.Dataset):
         # process and save as torch files
         print('Processing...')
 
-        training_set = (
-            read_image_file(os.path.join(self.root, self.raw_folder, 'train-images-idx3-ubyte')),
-            read_label_file(os.path.join(self.root, self.raw_folder, 'train-labels-idx1-ubyte'))
-        )
-        test_set = (
-            read_image_file(os.path.join(self.root, self.raw_folder, 't10k-images-idx3-ubyte')),
-            read_label_file(os.path.join(self.root, self.raw_folder, 't10k-labels-idx1-ubyte'))
-        )
+        training_set = (read_image_file(os.path.join(self.root, self.raw_folder, 'train-images-idx3-ubyte')),
+                        read_label_file(os.path.join(self.root, self.raw_folder, 'train-labels-idx1-ubyte')))
+        test_set = (read_image_file(os.path.join(self.root, self.raw_folder, 't10k-images-idx3-ubyte')),
+                    read_label_file(os.path.join(self.root, self.raw_folder, 't10k-labels-idx1-ubyte')))
         with open(os.path.join(self.root, self.processed_folder, self.training_file), 'wb') as f:
             torch.save(training_set, f)
         with open(os.path.join(self.root, self.processed_folder, self.test_file), 'wb') as f:
@@ -287,7 +297,6 @@ class my_MNIST(data.Dataset):
         fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         return fmt_str
 
-    
 
 def get_int(b):
     return int(codecs.encode(b, 'hex'), 16)
@@ -313,10 +322,9 @@ def read_image_file(path):
         parsed = np.frombuffer(data, dtype=np.uint8, offset=16)
         return torch.from_numpy(parsed).view(length, num_rows, num_cols)
 
-    
-    
+
 class my_FashionMNIST(my_MNIST):
-    """`Fashion-MNIST <https://github.com/zalandoresearch/fashion-mnist>`_ Dataset.
+    '''`Fashion-MNIST <https://github.com/zalandoresearch/fashion-mnist>`_ Dataset.
 
     Args:
         root (string): Root directory of dataset where ``processed/training.pt``
@@ -330,7 +338,7 @@ class my_FashionMNIST(my_MNIST):
             and returns a transformed version. E.g, ``transforms.RandomCrop``
         target_transform (callable, optional): A function/transform that takes in the
             target and transforms it.
-    """
+    '''
     urls = [
         'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/train-images-idx3-ubyte.gz',
         'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/train-labels-idx1-ubyte.gz',

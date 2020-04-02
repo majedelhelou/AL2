@@ -1,0 +1,3 @@
+[submodule "svcca"]
+	path = svcca
+	url = https://github.com/google/svcca.git
